@@ -108,6 +108,7 @@ class SpectralExtraction(PluginTemplateMixin, DatasetSelectMixin,
             Examples include ``propagate_uncertainties`` and ``operation_ignores_mask``.
         """
         # get glue Data objects for the spectral cube and uncertainties
+        '''
         flux_viewer = self._app.get_viewer(
             self._app._jdaviz_helper._default_flux_viewer_reference_name
         )
@@ -116,7 +117,17 @@ class SpectralExtraction(PluginTemplateMixin, DatasetSelectMixin,
         )
         [spectral_cube] = flux_viewer.data()
         [uncert_cube] = uncert_viewer.data()
+        '''
+        flux_data = self._app._jdaviz_helper._loaded_flux_cube
+        uncert_data = self._app._jdaviz_helper._loaded_uncert_cube
 
+        print(flux_data)
+        print("\n\n")
+        print(uncert_data)
+        if flux_data != None and uncert_data != None:
+            spectral_cube = flux_data
+            uncert_cube = uncert_data
+        
         # This plugin collapses over the *spatial axes* (optionally over a spatial subset,
         # defaults to ``No Subset``). Since the Cubeviz parser puts the fluxes
         # and uncertainties in different glue Data objects, we translate the spectral
