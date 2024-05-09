@@ -1,13 +1,14 @@
 import numpy as np
 from astropy import units as u
-from traitlets import List, Unicode, observe, Bool
+from traitlets import List, Unicode, observe
 
 from jdaviz.core.events import GlobalDisplayUnitChanged
 from jdaviz.core.registries import tray_registry
 from jdaviz.core.template_mixin import (PluginTemplateMixin, UnitSelectPluginComponent,
-                                        SelectPluginComponent, PluginUserApi)
+                                        PluginUserApi)
 from jdaviz.core.validunits import (create_spectral_equivalencies_list,
-                                    create_flux_equivalencies_list)
+                                    create_flux_equivalencies_list,
+                                    create_sb_equivalencies_list)
 
 __all__ = ['UnitConversion']
 
@@ -57,9 +58,8 @@ class UnitConversion(PluginTemplateMixin):
     flux_unit_items = List().tag(sync=True)
     flux_unit_selected = Unicode().tag(sync=True)
 
-    show_translator = Bool(False).tag(sync=True)
-    flux_or_sb_items = List().tag(sync=True)
-    flux_or_sb_selected = Unicode().tag(sync=True)
+    sb_unit_items = List().tag(sync=True)
+    sb_unit_selected = Unicode().tag(sync=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -82,17 +82,18 @@ class UnitConversion(PluginTemplateMixin):
         self.spectral_unit = UnitSelectPluginComponent(self,
                                                        items='spectral_unit_items',
                                                        selected='spectral_unit_selected')
-        self.flux_or_sb_unit = UnitSelectPluginComponent(self,
-                                                         items='flux_unit_items',
-                                                         selected='flux_unit_selected')
-        self.flux_or_sb = SelectPluginComponent(self,
-                                                items='flux_or_sb_items',
-                                                selected='flux_or_sb_selected',
-                                                manual_options=['Surface Brightness', 'Flux'])
+
+        self.flux_unit = UnitSelectPluginComponent(self,
+                                                   items='flux_unit_items',
+                                                   selected='flux_unit_selected')
+
+        self.sb_unit = UnitSelectPluginComponent(self,
+                                                 items='sb_unit_items',
+                                                 selected='sb_unit_selected')
 
     @property
     def user_api(self):
-        return PluginUserApi(self, expose=('spectral_unit', 'flux_or_sb', 'flux_or_sb_unit'))
+        return PluginUserApi(self, expose=('spectral_unit'))
 
     def _on_glue_x_display_unit_changed(self, x_unit):
         if x_unit is None:
@@ -110,41 +111,69 @@ class UnitConversion(PluginTemplateMixin):
             # which would then be appended on to the list of choices going forward
             self.spectral_unit._addl_unit_strings = self.spectrum_viewer.state.__class__.x_display_unit.get_choices(self.spectrum_viewer.state)  # noqa
             self.spectral_unit.selected = x_unit
-            if not len(self.flux_or_sb_unit.choices):
+            if not len(self.flux_unit.choices) or not len(self.sb_unit.choices):
                 # in case flux_unit was triggered first (but could not be set because there
                 # as no spectral_unit to determine valid equivalencies)
                 self._on_glue_y_display_unit_changed(self.spectrum_viewer.state.y_display_unit)
 
+    # still needs work
     def _on_glue_y_display_unit_changed(self, y_unit):
         if y_unit is None:
             return
         if self.spectral_unit.selected == "":
             # no spectral unit set yet, cannot determine equivalencies
-            # setting the spectral unit will check len(flux_or_sb_unit.choices)
+            # setting the spectral unit will check len(flux_unit.choices) or len(sb_unit.choices)
             # and call this manually in the case that that is triggered second.
             return
         self.spectrum_viewer.set_plot_axes()
-        if y_unit != self.flux_or_sb_unit.selected:
+
+        # determine if flux or surface brightness drop down was changed
+        flux_or_sb = ''
+        flux_or_sb_selected = None
+        if u.sr in u.Unit(y_unit).bases:
+            flux_or_sb_selected = self.sb_unit.selected
+            flux_or_sb = 'Surface Brightness'
+        else:
+            flux_or_sb_selected = self.flux_unit.selected
+            flux_or_sb = 'Flux'
+
+        if y_unit != flux_or_sb_selected:
             x_u = u.Unit(self.spectral_unit.selected)
             y_unit = _valid_glue_display_unit(y_unit, self.spectrum_viewer, 'y')
             y_u = u.Unit(y_unit)
-            choices = create_flux_equivalencies_list(y_u, x_u)
-            # ensure that original entry is in the list of choices
-            if not np.any([y_u == u.Unit(choice) for choice in choices]):
-                choices = [y_unit] + choices
-            self.flux_or_sb_unit.choices = choices
-            self.flux_or_sb_unit.selected = y_unit
+            flux_choices = create_flux_equivalencies_list(y_u, x_u)
+            sb_choices = create_sb_equivalencies_list(y_u, x_u)
 
-    def translate_units(self, flux_or_sb_selected):
+            # ensure that original entry is in the list of choices
+            if flux_or_sb == 'Surface Brightness':
+                if not np.any([y_u == u.Unit(choice) for choice in sb_choices]):
+                    sb_choices = [y_unit] + sb_choices
+            elif flux_or_sb == 'Flux':
+                if not np.any([y_u == u.Unit(choice) for choice in flux_choices]):
+                    flux_choices = [y_unit] + flux_choices
+
+            # update the drop down choices
+            self.flux_unit.choices = flux_choices
+            self.sb_unit.choices = sb_choices
+
+            # update the selections
+            if flux_or_sb == 'Surface Brightness':
+                self.sb_unit.selected = y_unit
+                self.flux_unit.selected = str(u.Unit(y_unit) * u.sr)
+            elif flux_or_sb == 'Flux':
+                self.flux_unit.selected = y_unit
+                self.sb_unit.selected = str(u.Unit(y_unit) / u.sr)
+
+    def translate_units(self, flux_or_sb_select):
         spec_units = u.Unit(self.spectrum_viewer.state.y_display_unit)
         # Surface Brightness -> Flux
-        if u.sr in spec_units.bases and flux_or_sb_selected == 'Flux':
+        if u.sr in spec_units.bases and flux_or_sb_select == 'Flux':
             spec_units *= u.sr
             # update display units
             self.spectrum_viewer.state.y_display_unit = str(spec_units)
 
         # Flux -> Surface Brightness
-        elif u.sr not in spec_units.bases and flux_or_sb_selected == 'Surface Brightness':
+        elif u.sr not in spec_units.bases and flux_or_sb_select == 'Surface Brightness':
             spec_units /= u.sr
             # update display units
             self.spectrum_viewer.state.y_display_unit = str(spec_units)
@@ -158,44 +187,37 @@ class UnitConversion(PluginTemplateMixin):
                                self.spectral_unit.selected,
                                sender=self))
 
-    @observe('flux_unit_selected')
+    @observe('flux_unit_selected', 'sb_unit_selected')
     def _on_flux_unit_changed(self, *args):
-        yunit = _valid_glue_display_unit(self.flux_or_sb_unit.selected, self.spectrum_viewer, 'y')
+        flux_or_sb = None
+        for arg in args:
+            if arg['name'] == 'flux_unit_selected':
+                flux_or_sb = self.flux_unit.selected
+            elif arg['name'] == 'sb_unit_selected':
+                flux_or_sb = self.sb_unit.selected
+
+        yunit = _valid_glue_display_unit(flux_or_sb, self.spectrum_viewer, 'y')
         if self.spectrum_viewer.state.y_display_unit != yunit:
             self.spectrum_viewer.state.y_display_unit = yunit
             self.hub.broadcast(GlobalDisplayUnitChanged('flux',
-                                                        self.flux_or_sb_unit.selected,
+                                                        flux_or_sb,
                                                         sender=self))
 
-    # Ensure first dropdown selection for Flux/Surface Brightness
-    # is in accordance with the data collection item's units.
-    @observe('show_translator')
-    def _set_flux_or_sb(self, *args):
-        if (self.spectrum_viewer and hasattr(self.spectrum_viewer.state, 'y_display_unit')
-           and self.spectrum_viewer.state.y_display_unit is not None):
-            if u.sr in u.Unit(self.spectrum_viewer.state.y_display_unit).bases:
-                self.flux_or_sb_selected = 'Surface Brightness'
-            else:
-                self.flux_or_sb_selected = 'Flux'
-
-    @observe('flux_or_sb_selected')
+    @observe('flux_unit_selected', 'sb_unit_selected')
     def _translate(self, *args):
         # currently unsupported, can be supported with a scale factor
         if self.app.config == 'specviz':
             return
 
-        # Check for a scale factor/data passed through spectral extraction plugin.
-        specs_w_factor = [spec for spec in self.app.data_collection
-                          if "_pixel_scale_factor" in spec.meta]
-        # Translate if we have a scale factor
-        if specs_w_factor:
-            self.translate_units(self.flux_or_sb_selected)
-        # The translator dropdown hasn't been loaded yet so don't try translating
-        elif not self.show_translator:
-            return
-        # Notify the user to extract a spectrum before using the surface brightness/flux
-        # translation. Can be removed after all 1D spectra in Cubeviz pass through
-        # spectral extraction plugin (as the scale factor will then be stored).
-        else:
-            raise ValueError("No collapsed spectra in data collection, \
-                              please collapse a spectrum first.")
+        flux_or_sb_select = None
+
+        if args:
+            for arg in args:
+                # SB to Flux
+                if arg['name'] == 'flux_unit_selected':
+                    flux_or_sb_select = 'Flux'
+                # Flux to SB
+                elif arg['name'] == 'sb_unit_selected':
+                    flux_or_sb_select = 'Surface Brightness'
+
+        self.translate_units(flux_or_sb_select)
