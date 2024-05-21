@@ -141,15 +141,26 @@ class UnitConversion(PluginTemplateMixin):
             x_u = u.Unit(self.spectral_unit.selected)
             y_unit = _valid_glue_display_unit(y_unit, self.spectrum_viewer, 'y')
             y_u = u.Unit(y_unit)
-            flux_choices = create_flux_equivalencies_list(y_u, x_u)
-            sb_choices = create_sb_equivalencies_list(y_u, x_u)
+            
+            if u.sr in y_u.bases:
+                flux_y_u = y_u * u.sr
+                sb_y_u = y_u
+            elif u.sr not in y_u.bases:
+                flux_y_u = y_u
+                sb_y_u = y_u / u.sr
+
+            if hasattr(self.app, 'data_collection'):
+                data_item_unit = self.app.data_collection[0].get_object()._unit
+
+            flux_choices = create_flux_equivalencies_list(flux_y_u, x_u, data_item_unit)
+            sb_choices = create_sb_equivalencies_list(sb_y_u, x_u, data_item_unit)
 
             # ensure that original entry is in the list of choices
             if flux_or_sb == 'Surface Brightness':
-                if not np.any([y_u == u.Unit(choice) for choice in sb_choices]):
+                if not np.any([sb_y_u == u.Unit(choice) for choice in sb_choices]):
                     sb_choices = [y_unit] + sb_choices
             elif flux_or_sb == 'Flux':
-                if not np.any([y_u == u.Unit(choice) for choice in flux_choices]):
+                if not np.any([flux_y_u == u.Unit(choice) for choice in flux_choices]):
                     flux_choices = [y_unit] + flux_choices
 
             # update the drop down choices
@@ -207,6 +218,9 @@ class UnitConversion(PluginTemplateMixin):
     def _translate(self, *args):
         # currently unsupported, can be supported with a scale factor
         if self.app.config == 'specviz':
+            return
+        # make sure translation does happen at instantiation
+        if not self.flux_unit_items.selected:
             return
 
         flux_or_sb_select = None

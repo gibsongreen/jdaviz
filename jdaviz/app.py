@@ -78,15 +78,15 @@ class UnitConverterWithSpectral:
                     'erg / (s cm2)',
                     'erg / (s cm2 Angstrom)', 'erg / (s cm2 Angstrom)',
                     'erg / (s cm2 Hz)', 'erg / (Hz s cm2)',
-                    'ph / (s cm2 Angstrom)', 'ph / (s cm2 Angstrom)',
-                    'ph / (Hz s cm2)', 'ph / (Hz s cm2)', 'bol', 'AB', 'ST'
+                    'ph / (s cm2 Angstrom)', 'ph / (Hz s cm2)'
                 ]
                 + [
                     'Jy / sr', 'mJy / sr', 'uJy / sr', 'MJy / sr',
                     'W / (Hz sr m2)',
                     'eV / (s m2 Hz sr)',
                     'erg / (s cm2 sr)',
-                    'erg / (s cm2 Angstrom sr)', 'erg / (s cm2 Hz sr)',
+                    'erg / (s cm2 Angstrom sr)',
+                    'erg / (s cm2 Hz sr)',
                     'ph / (s cm2 Angstrom sr)', 'ph / (s cm2 Hz sr)',
                     'bol / sr', 'AB / sr', 'ST / sr'
                 ])
