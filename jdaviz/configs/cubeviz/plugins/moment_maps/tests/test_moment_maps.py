@@ -298,8 +298,10 @@ def test_momentmap_nirspec_prism(cubeviz_helper, tmp_path):
 def test_correct_output_flux_or_sb_units(cubeviz_helper, spectrum1d_cube_custom_fluxunit):
     if SPECUTILS_LT_1_15_1:
         moment_unit = "Jy / sr"
+        moment_unit_no_sr = "Jy"
     else:
         moment_unit = "Jy m / sr"
+        moment_unit_no_sr = "Jy m"
 
     # test that the output unit labels in the moment map plugin reflect any
     # changes made in the unit conversion plugin.
@@ -353,8 +355,8 @@ def test_correct_output_flux_or_sb_units(cubeviz_helper, spectrum1d_cube_custom_
     assert output_unit_moment_0['label'] == 'Flux'
     assert output_unit_moment_0['unit_str'] == 'Jy'
 
-    mm.calculate_moment()  # FIXME: So why was this commented?
-    # TODO: Add meaningful checks here.
+    mm.calculate_moment()
+    assert mm.moment.unit == moment_unit_no_sr
 
     # TODO: This test should pass once continuum subtraction works with
     #  flux to surface brightness conversion

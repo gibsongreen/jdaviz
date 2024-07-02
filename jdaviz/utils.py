@@ -324,20 +324,14 @@ def flux_conversion(spec, values, original_units, target_units):
         # App wide original data units are used for conversion, original and
         # target_units dictate the conversion to take place.
 
-        if (u.sr in u.Unit(original_units).bases) and \
-                (u.sr not in u.Unit(target_units).bases):
+        if ((u.sr in u.Unit(original_units).bases) and
+                (u.sr not in u.Unit(target_units).bases)):
             # Surface Brightness -> Flux
-            eqv = [(u.MJy / u.sr,
-                    u.MJy,
-                    lambda x: (x * np.array(spec.meta.get('_pixel_scale_factor', 1))),
-                    lambda x: x)]
-        elif (u.sr not in u.Unit(original_units).bases) and \
-                (u.sr in u.Unit(target_units).bases):
+            eqv = _eqv_pixar_sr(np.array(spec.meta.get('_pixel_scale_factor', 1)))
+        elif ((u.sr not in u.Unit(original_units).bases) and
+                (u.sr in u.Unit(target_units).bases)):
             # Flux -> Surface Brightness
-            eqv = [(u.MJy,
-                    u.MJy / u.sr,
-                    lambda x: (x / np.array(spec.meta.get('_pixel_scale_factor', 1))),
-                    lambda x: x)]
+            eqv = _eqv_pixar_sr(np.array(spec.meta.get('_pixel_scale_factor', 1)))
         else:
             eqv = u.spectral_density(spectral_values)
 
@@ -352,23 +346,28 @@ def flux_conversion(spec, values, original_units, target_units):
             pixel_scale_max = (Quantity(max(spec.meta.get('_pixel_scale_factor', 1)))).value
             min_max = [pixel_scale_min, pixel_scale_max]
 
-            if (u.sr in u.Unit(original_units).bases) and \
-                    (u.sr not in u.Unit(target_units).bases):
-                eqv += [(u.MJy,
-                         u.MJy / u.sr,
-                         lambda x: x * np.array(min_max),
-                         lambda x: x)]
-            elif (u.sr not in u.Unit(original_units).bases) and \
-                    (u.sr in u.Unit(target_units).bases):
-                eqv += [(u.MJy / u.sr,
-                         u.MJy,
-                         lambda x: x / np.array(min_max),
-                         lambda x: x)]
+            if ((u.sr in u.Unit(original_units).bases) and
+                    (u.sr not in u.Unit(target_units).bases)):
+                eqv += _eqv_pixar_sr(np.array(min_max))
+            elif ((u.sr not in u.Unit(original_units).bases) and
+                    (u.sr in u.Unit(target_units).bases)):
+                eqv += _eqv_pixar_sr(np.array(min_max))
 
     else:
         eqv = u.spectral_density(spectral_values)
 
     return (values * u.Unit(original_units)).to_value(u.Unit(target_units), equivalencies=eqv)
+
+
+def _eqv_pixar_sr(pixar_sr):
+    def converter_flux(x):  # Surface Brightness -> Flux
+        return x * pixar_sr
+
+    def iconverter_flux(x):  # Flux -> Surface Brightness
+        return x / pixar_sr
+
+    return [(u.MJy / u.sr, u.MJy, converter_flux, iconverter_flux),
+            (u.MJy * u.m / u.sr, u.MJy * u.m, converter_flux, iconverter_flux)]
 
 
 def spectral_axis_conversion(values, original_units, target_units):
