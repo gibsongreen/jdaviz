@@ -348,17 +348,17 @@ def test_correct_output_flux_or_sb_units(cubeviz_helper, spectrum1d_cube_custom_
     uc.flux_or_sb.selected = 'Flux'
     mm._set_data_units()
 
-    # and make sure this change is propogated
+    # and make sure this change is propagated
     output_unit_moment_0 = mm.output_unit_items[0]
     assert output_unit_moment_0['label'] == 'Flux'
     assert output_unit_moment_0['unit_str'] == 'Jy'
 
-    # TODO: Failing because of dev version of upstream dependency, figure
-    #  out which one
-    # assert mm.calculate_moment()
+    mm.calculate_moment()  # FIXME: So why was this commented?
+    # TODO: Add meaningful checks here.
 
     # TODO: This test should pass once continuum subtraction works with
     #  flux to surface brightness conversion
     # mm.continuum.selected = 'Surrounding'
     #
-    # assert mm.calculate_moment()
+    # mm.calculate_moment()
+    # TODO: Add meaningful checks here.
