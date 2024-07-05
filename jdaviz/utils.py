@@ -367,7 +367,7 @@ def _eqv_pixar_sr(pixar_sr):
         return x / pixar_sr
 
     return [(u.MJy / u.sr, u.MJy, converter_flux, iconverter_flux),
-            # TODO: This can be removed when we remove SB unit support from Moment Maps
+            # TODO: This can be removed when we remove SB->flux unit support from Moment Maps
             (u.MJy * u.m / u.sr, u.MJy * u.m, converter_flux, iconverter_flux)]
 
 
