@@ -360,7 +360,7 @@ class MomentMap(PluginTemplateMixin, DatasetSelectMixin, SpectralSubsetSelectMix
                 moment_new_unit = flux_or_sb_display_unit * self.spectrum_viewer.state.x_display_unit  # noqa: E501
             # TODO: Remove SB unit support when we can.
             self.moment = self.moment.to(moment_new_unit, _eqv_pixar_sr(
-                self.moment.size * self.dataset.selected_dc_item.meta.get('PIXAR_SR', 1.0)))
+                self.dataset.selected_dc_item.meta.get('PIXAR_SR', 1.0)))
 
         # Reattach the WCS so we can load the result
         self.moment = CCDData(self.moment, wcs=data_wcs)
