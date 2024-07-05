@@ -347,7 +347,7 @@ def test_correct_output_flux_or_sb_units(cubeviz_helper, spectrum1d_cube_custom_
     mm.calculate_moment()
     assert mm.moment.unit == moment_unit
 
-    # TODO: All this below can be removed when we remove SB unit support from Moment Maps
+    # TODO: All this below can be removed when we remove SB->flux unit support from Moment Maps
 
     uc.flux_or_sb.selected = 'Flux'
     mm._set_data_units()
