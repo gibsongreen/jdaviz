@@ -69,7 +69,7 @@ class FreezableProfileViewerState(ProfileViewerState, FreezableState):
             spectral_axis = x_corners * u.Unit(self.x_display_unit)
 
             for layer in self.layers:
-                if layer.layer.meta.get('_pixel_scale_factor'):
+                if hasattr(layer.layer, 'meta') and layer.layer.meta.get('_pixel_scale_factor'):
                     spectral_axis.info.meta = {'_pixel_scale_factor',
                                                layer.layer.meta.get('_pixel_scale_factor')}
 
