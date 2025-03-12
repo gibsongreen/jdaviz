@@ -100,7 +100,7 @@ class CoordsInfo(TemplateMixin, DatasetSelectMixin):
             self._marks[id] = PluginScatter(viewer,
                                             marker='rectangle', stroke_width=1,
                                             visible=False)
-        if isinstance(viewer, SpecvizProfileView):
+        if isinstance(viewer, SpecvizProfileView) or isinstance(viewer, MosvizProfileView):
             matched_id = f"{id}:matched"
             self._marks[matched_id] = PluginLine(viewer,
                                                  x=[0, 0], y=[0, 1],
@@ -159,9 +159,9 @@ class CoordsInfo(TemplateMixin, DatasetSelectMixin):
             matched_markers = {}
             for viewer_id, viewer in self.app._viewer_store.items():
                 if isinstance(viewer, SpecvizProfileView):
-                    matched_markers[viewer_id] = [vid for vid, v in self.app._viewer_store.items() if isinstance(v, MosvizProfile2DView)]
+                    matched_markers[viewer_id] = [vid for vid, v in self.app._viewer_store.items() if isinstance(v, MosvizProfile2DView)]  # noqa
                 elif isinstance(viewer, MosvizProfile2DView):
-                    matched_markers[viewer_id] = [f"{vid}:matched" for vid, v in self.app._viewer_store.items() if isinstance(v, SpecvizProfileView)]
+                    matched_markers[viewer_id] = [f"{vid}:matched" for vid, v in self.app._viewer_store.items() if isinstance(v, SpecvizProfileView)]  # noqa
             return matched_markers
         return {}
 
@@ -246,7 +246,7 @@ class CoordsInfo(TemplateMixin, DatasetSelectMixin):
 
     def update_display(self, viewer, x, y):
         self._dict = {}
-        if isinstance(viewer, (SpecvizProfileView, RampvizProfileView)):
+        if isinstance(viewer, (SpecvizProfileView, RampvizProfileView, MosvizProfileView)):
             self._spectrum_viewer_update(viewer, x, y)
         elif isinstance(viewer,
                         (ImvizImageView, CubevizImageView,
@@ -509,14 +509,14 @@ class CoordsInfo(TemplateMixin, DatasetSelectMixin):
                    not in ['frequency', 'wavelength', 'length']
                    and unit != self.app._get_display_unit(attribute)):
                     to_unit = self.app._get_display_unit(attribute)
-                    if (check_if_unit_is_per_solid_angle(unit) == True and attribute == 'flux'):
+                    if (check_if_unit_is_per_solid_angle(unit) and attribute == 'flux'):
                         to_unit = self.app._get_display_unit('sb')
 
                     equivalencies = all_flux_unit_conversion_equivs(cube_wave=wave)
                     value = flux_conversion_general(value, unit,
-                                                to_unit,
-                                                equivalencies,
-                                                with_unit=False)
+                                                    to_unit,
+                                                    equivalencies,
+                                                    with_unit=False)
                     unit = to_unit
 
             elif isinstance(viewer, (CubevizImageView, RampvizImageView)):
@@ -667,9 +667,15 @@ class CoordsInfo(TemplateMixin, DatasetSelectMixin):
                                                                 sp.spectral_axis)
 
                 if sp.flux.unit is not None and viewer.state.y_display_unit is not None:
+                    to_unit = viewer.state.y_display_unit
+                    if (self.app.config != 'cubeviz' and
+                       check_if_unit_is_per_solid_angle(sp.flux.unit)
+                       != check_if_unit_is_per_solid_angle(to_unit)):
+                        to_unit = self.app._get_display_unit('sb')
+
                     disp_flux = flux_conversion_general(sp.flux.value,
                                                         sp.flux.unit,
-                                                        viewer.state.y_display_unit,
+                                                        to_unit,
                                                         equivalencies, with_unit=False)  # noqa: E501
                 else:
                     disp_flux = sp.flux
@@ -728,9 +734,9 @@ class CoordsInfo(TemplateMixin, DatasetSelectMixin):
         else:
             flux_unit = viewer.state.y_display_unit
         self.row3_title = 'Flux'
-        self.row3_text = f'{closest_flux:10.5e} {flux_unit}'
+        self.row3_text = f'{closest_flux:10.5e} {to_unit}'
         self._dict['axes_y'] = closest_flux
-        self._dict['axes_y:unit'] = str(viewer.state.y_display_unit)
+        self._dict['axes_y:unit'] = str(flux_unit)
 
         if closest_icon is not None:
             self.icon = closest_icon
